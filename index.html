@@ -80,6 +80,7 @@ details[open] summary::before{content:"▾ "}
 .btn{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:10px;padding:8px 12px;cursor:pointer;min-height:40px}
 .btn.check[aria-pressed="true"]{background:var(--done-soft);border-color:var(--done);color:var(--done);font-weight:600}
 .btn.wish[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+.btn.pick[aria-pressed="true"]{background:var(--day-soft);border-color:var(--day);color:var(--day);font-weight:600}
 .stars{display:flex;margin-left:auto}
 .stars button{font-size:26px;line-height:1;background:none;border:0;padding:4px 3px;color:var(--line);cursor:pointer;min-width:36px;min-height:40px}
 .stars button.on{color:var(--star)}
@@ -313,7 +314,7 @@ function chips(el,items,key){
   paint();
   el.onclick=e=>{const b=e.target.closest(".chip");if(!b)return;prefs[key]=b.dataset.v;paint();savePrefs();render()};
 }
-chips($("#status"),[["all","전체"],["wish","♥ 찜"],["todo","아직 안 마심"],["done","마신 것"],["sat","토요일만"],["sun","일요일만"]],"status");
+chips($("#status"),[["all","전체"],["wish","♥ 하트"],["pick","찜"],["todo","아직 안 마심"],["done","마신 것"],["sat","토요일만"],["sun","일요일만"]],"status");
 chips($("#types"),[["all","모든 유형"],...Object.entries(TYPES)],"type");
 chips($("#importers"),[["all","모든 수입사"],...imps.map(i=>[i,i])],"imp");
 $("#sort").value=prefs.sort;
@@ -338,7 +339,8 @@ function card(w){
     <div class="mine">
       <div class="mine-row">
         <button type="button" class="btn check" data-act="done" aria-pressed="${!!m.done}">${m.done?"✓ 마셨어요":"마셨어요"}</button>
-        <button type="button" class="btn wish" data-act="wish" aria-pressed="${!!m.wish}" aria-label="찜">${m.wish?"♥":"♡"}</button>
+        <button type="button" class="btn wish" data-act="wish" aria-pressed="${!!m.wish}" aria-label="하트">${m.wish?"♥":"♡"}</button>
+        <button type="button" class="btn pick" data-act="pick" aria-pressed="${!!m.pick}">${m.pick?"✓ 찜":"찜하기"}</button>
         <div class="stars" role="group" aria-label="내 별점">${stars}</div>
       </div>
       <textarea data-act="memo" rows="1" placeholder="내 메모 (향, 맛, 페어링…)" aria-label="${esc(w.name)} 메모">${esc(m.memo||"")}</textarea>
@@ -352,6 +354,7 @@ function matches(w){
   if(s==="todo"&&m.done)return false;
   if(s==="done"&&!m.done)return false;
   if(s==="wish"&&!m.wish)return false;
+  if(s==="pick"&&!m.pick)return false;
   if(s==="sat"&&!w.tags.includes("토요일만"))return false;
   if(s==="sun"&&!w.tags.includes("일요일만"))return false;
   if(prefs.type!=="all"&&w[2]!==prefs.type)return false;
@@ -381,7 +384,8 @@ function progress(){
   $("#bar").style.width=(n/W.length*100)+"%";
   const wish=W.filter(w=>(my[w.key]||{}).wish).length;
   $('#status .chip[data-v="done"]').textContent=`마신 것 ${n}`;
-  $('#status .chip[data-v="wish"]').textContent=`♥ 찜 ${wish}`;
+  $('#status .chip[data-v="wish"]').textContent=`♥ 하트 ${wish}`;
+  $('#status .chip[data-v="pick"]').textContent=`찜 ${W.filter(w=>(my[w.key]||{}).pick).length}`;
 }
 function grow(t){t.style.height="auto";t.style.height=t.scrollHeight+2+"px"}
 
@@ -391,6 +395,7 @@ $("#out").addEventListener("click",e=>{
   const cardEl=b.closest(".card"),w=W[+cardEl.dataset.i],m=get(w.key);
   if(b.dataset.act==="done")m.done=!m.done;
   if(b.dataset.act==="wish")m.wish=!m.wish;
+  if(b.dataset.act==="pick")m.pick=!m.pick;
   if(b.dataset.act==="star"){const n=+b.dataset.n;m.stars=m.stars===n?0:n;if(n&&!m.done&&m.stars)m.done=true}
   save();
   const fresh=document.createElement("div");fresh.innerHTML=card(w);
@@ -408,13 +413,13 @@ $("#top-btn").onclick=()=>window.scrollTo({top:0,behavior:"smooth"});
 
 function toast(s){const t=$("#toast");t.textContent=s;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1800)}
 function exportText(){
-  const done=W.filter(w=>{const m=my[w.key]||{};return m.done||m.stars||m.memo});
+  const done=W.filter(w=>{const m=my[w.key]||{};return m.done||m.stars||m.memo||m.wish||m.pick});
   if(!done.length)return "";
   const lines=["🍷 깽이와 테리의 시음회 노트",""];
   imps.forEach(i=>{
     const g=done.filter(w=>w[0]===i);if(!g.length)return;
     lines.push(`[${i}]`);
-    g.forEach(w=>{const m=my[w.key];lines.push(`· ${w.name}${m.stars?" "+"★".repeat(m.stars)+"☆".repeat(5-m.stars):""}${w[5]?` (Vivino ${w[5].toFixed(1)})`:""}`);if(m.memo)lines.push(`  ${m.memo.replace(/\n/g," ")}`)});
+    g.forEach(w=>{const m=my[w.key];lines.push(`· ${m.wish?"♥ ":""}${m.pick?"[찜] ":""}${w.name}${m.stars?" "+"★".repeat(m.stars)+"☆".repeat(5-m.stars):""}${w[5]?` (Vivino ${w[5].toFixed(1)})`:""}`);if(m.memo)lines.push(`  ${m.memo.replace(/\n/g," ")}`)});
     lines.push("");
   });
   return lines.join("\n").trim();
