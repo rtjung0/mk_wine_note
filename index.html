@@ -313,7 +313,7 @@ function chips(el,items,key){
   paint();
   el.onclick=e=>{const b=e.target.closest(".chip");if(!b)return;prefs[key]=b.dataset.v;paint();savePrefs();render()};
 }
-chips($("#status"),[["all","전체"],["todo","아직 안 마심"],["done","마신 것"],["wish","찜한 것"],["sat","토요일만"],["sun","일요일만"]],"status");
+chips($("#status"),[["all","전체"],["wish","♥ 찜"],["todo","아직 안 마심"],["done","마신 것"],["sat","토요일만"],["sun","일요일만"]],"status");
 chips($("#types"),[["all","모든 유형"],...Object.entries(TYPES)],"type");
 chips($("#importers"),[["all","모든 수입사"],...imps.map(i=>[i,i])],"imp");
 $("#sort").value=prefs.sort;
@@ -379,6 +379,9 @@ function progress(){
   const n=W.filter(w=>(my[w.key]||{}).done).length;
   $("#prog").textContent=`${n} / ${W.length} 시음`;
   $("#bar").style.width=(n/W.length*100)+"%";
+  const wish=W.filter(w=>(my[w.key]||{}).wish).length;
+  $('#status .chip[data-v="done"]').textContent=`마신 것 ${n}`;
+  $('#status .chip[data-v="wish"]').textContent=`♥ 찜 ${wish}`;
 }
 function grow(t){t.style.height="auto";t.style.height=t.scrollHeight+2+"px"}
 
