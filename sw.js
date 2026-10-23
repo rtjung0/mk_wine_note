@@ -1,6 +1,6 @@
 // 행사장 데이터가 약해도 열리도록: 네트워크 우선, 실패하면 저장해 둔 사본으로 연다
-const CACHE = "wine-note-v4";
-const CORE = ["./", "index.html", "data.js", "regions.js", "manifest.webmanifest", "icons/apple-touch-icon.png", "icons/icon-192.png", "icons/icon-512.png"];
+const CACHE = "wine-note-v5";
+const CORE = ["./", "index.html", "data.js", "regions.js", "grapes.js", "manifest.webmanifest", "icons/apple-touch-icon.png", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));

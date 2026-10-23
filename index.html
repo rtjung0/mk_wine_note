@@ -25,6 +25,7 @@
   --red:#8c2236; --white:#9a7b14; --spark:#2f6f82; --rose:#c04f6d; --sweet:#9a5a1c; --orange:#b8691d;
   --star:#b8860b; --done:#2f7a4f; --done-soft:#e3f1e8; --day:#5a3fa0; --day-soft:#ece6f8;
   --geo:#355e3b; --geo-soft:#e8f0e6;
+  --grape:#6a2f63; --grape-soft:#f3e7f1;
   --f-display:"Gowun Batang","Nanum Myeongjo",Georgia,serif;
   --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
@@ -35,7 +36,7 @@
   --accent:#e0849a; --accent-fg:#1a1013; --accent-soft:#3a2229;
   --red:#e07a8c; --white:#d9bd5c; --spark:#7fbfd1; --rose:#ee9bb1; --sweet:#d89a5a; --orange:#e9a35e;
   --star:#e3b641; --done:#6fcf97; --done-soft:#1f3328; --day:#b9a3f0; --day-soft:#2b2340;
-  --geo:#9fd3a4; --geo-soft:#1f2e22; color-scheme:dark}}
+  --geo:#9fd3a4; --geo-soft:#1f2e22; --grape:#e3a8da; --grape-soft:#33202f; color-scheme:dark}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:pan-x pan-y}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.55;overscroll-behavior-y:none}
@@ -87,7 +88,19 @@ main{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
 .t-R{color:var(--red)}.t-W{color:var(--white)}.t-S{color:var(--spark)}.t-P{color:var(--rose)}.t-D{color:var(--sweet)}.t-O{color:var(--orange)}
 .tag.day{color:var(--day);background:var(--day-soft);border-color:transparent}
 .price{font-family:var(--f-mono);color:var(--fg)}
-.region-btn{display:inline-flex;align-items:center;gap:4px;margin-top:8px;border:1px solid transparent;background:var(--geo-soft);color:var(--geo);border-radius:10px;padding:6px 10px;font-size:14px;font-weight:500;cursor:pointer;max-width:100%;text-align:left}
+.facets{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.grape-btn{display:inline-flex;align-items:center;gap:4px;border:0;background:var(--grape-soft);color:var(--grape);border-radius:10px;padding:6px 10px;font-size:14px;font-weight:500;cursor:pointer}
+.grape-btn .chev{transition:transform .2s;font-size:11px}
+.grape-btn[aria-expanded="true"]{outline:1.5px solid var(--grape)}
+.grape-btn[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.region.gpanel{background:var(--grape-soft)}
+.region.gpanel dt{color:var(--grape)}
+.region.gpanel .more{border-color:var(--grape);color:var(--grape)}
+.gp-h{font-weight:600;color:var(--grape);font-size:15px}
+.gp-h span{font-weight:400;font-size:12px;color:var(--muted);margin-left:4px}
+.pill-x.grape{background:var(--grape-soft);color:var(--grape)}
+.region-btn[aria-expanded="true"]{outline:1.5px solid var(--geo)}
+.region-btn{display:inline-flex;align-items:center;gap:4px;border:1px solid transparent;background:var(--geo-soft);color:var(--geo);border-radius:10px;padding:6px 10px;font-size:14px;font-weight:500;cursor:pointer;max-width:100%;text-align:left}
 .region-btn .chev{transition:transform .2s;font-size:11px}
 .region-btn[aria-expanded="true"] .chev{transform:rotate(180deg)}
 .region-btn:disabled{background:none;padding-left:0;color:var(--muted);cursor:default}
@@ -157,7 +170,7 @@ dialog .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 <div class="controls">
   <div class="wrap">
     <div class="search">
-      <input type="search" id="q" placeholder="와인·생산자·산지·메모 검색" aria-label="검색" autocomplete="off" enterkeyhint="search">
+      <input type="search" id="q" placeholder="와인·생산자·산지·품종 검색" aria-label="검색" autocomplete="off" enterkeyhint="search">
       <select id="sort" aria-label="정렬">
         <option value="list">출품순</option>
         <option value="rating">Vivino순</option>
@@ -195,6 +208,7 @@ dialog .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 
 <script src="data.js"></script>
 <script src="regions.js"></script>
+<script src="grapes.js"></script>
 <script>
 // 확대/축소 막기: iOS Safari는 viewport 설정을 무시하므로 핀치·더블탭 제스처를 직접 막는다
 ["gesturestart","gesturechange","gestureend"].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
@@ -214,7 +228,8 @@ W.forEach((w,i)=>{
   w.producer=META[i][0]; w.reg=META[i][1];
   w.grape=(w[4]||"").split(" · ")[1]||"";
   const r=REG[w.reg];
-  w.hay=norm([w[0],w[1],w[3],w[4],w[8],EN[w[1]]||"",w.producer,r?r.name+" "+r.country:""].join(" "));
+  w.grapes=GMAP[i];
+  w.hay=norm([w[0],w[1],w[3],w[4],w[8],EN[w[1]]||"",w.producer,r?r.name+" "+r.country:"",w.grapes.map(g=>GRAPE[g].name).join(" ")].join(" "));
 });
 
 const STORE="wine-tasting-2026-10";
@@ -223,11 +238,12 @@ try{my=JSON.parse(localStorage.getItem(STORE)||"{}")||{}}catch(e){my={}}
 const save=()=>{try{localStorage.setItem(STORE,JSON.stringify(my))}catch(e){}};
 const get=k=>my[k]||(my[k]={});
 
-let prefs={status:"all",type:"all",imp:"all",sort:"list",reg:""};
+let prefs={status:"all",type:"all",imp:"all",sort:"list",reg:"",grape:""};
 try{Object.assign(prefs,JSON.parse(sessionStorage.getItem(STORE+"-ui")||"{}"))}catch(e){}
 const savePrefs=()=>{try{sessionStorage.setItem(STORE+"-ui",JSON.stringify(prefs))}catch(e){}};
 let q="";
 const openReg=new Set();
+const openGrape=new Map(); // 카드 번호 → 펼친 품종 (카드당 하나)
 
 const imps=[...new Set(W.map(w=>w[0]))];
 function chips(el,items,key){
@@ -240,6 +256,7 @@ function paintChips(){
   $("#filter-btn").innerHTML="필터"+(n?`<span class="dot">${n}</span>`:"");
   const act=[];
   if(prefs.reg&&REG[prefs.reg])act.push(`<button type="button" class="pill-x" data-clear="reg">산지: ${esc(REG[prefs.reg].name)} ✕</button>`);
+  if(prefs.grape&&GRAPE[prefs.grape])act.push(`<button type="button" class="pill-x grape" data-clear="grape">품종: ${esc(GRAPE[prefs.grape].name)} ✕</button>`);
   if(prefs.type!=="all")act.push(`<button type="button" class="pill-x" data-clear="type">${esc(TYPES[prefs.type])} ✕</button>`);
   if(prefs.imp!=="all")act.push(`<button type="button" class="pill-x" data-clear="imp">${esc(prefs.imp)} ✕</button>`);
   $("#active").innerHTML=act.join("");
@@ -248,7 +265,7 @@ chips($("#status"),[["all","전체"],["wish","♥ 하트"],["pick","찜"],["todo
 chips($("#types"),[["all","모든 유형"],...Object.entries(TYPES)],"type");
 chips($("#importers"),[["all","모든 수입사"],...imps.map(i=>[i,i])],"imp");
 $("#sort").value=prefs.sort;
-$("#active").onclick=e=>{const b=e.target.closest("[data-clear]");if(!b)return;const k=b.dataset.clear;prefs[k]=k==="reg"?"":"all";paintChips();savePrefs();render()};
+$("#active").onclick=e=>{const b=e.target.closest("[data-clear]");if(!b)return;const k=b.dataset.clear;prefs[k]=(k==="reg"||k==="grape")?"":"all";paintChips();savePrefs();render()};
 $("#filter-btn").onclick=()=>{const p=$("#filter-panel"),open=p.hidden;p.hidden=!open;$("#filter-btn").setAttribute("aria-expanded",open)};
 
 function regionPanel(w){
@@ -260,6 +277,17 @@ function regionPanel(w){
     <div><dt>토양 · 지형</dt><dd>${esc(r.soil)}</dd></div>
     <div><dt>맛에 주는 영향</dt><dd>${esc(r.taste)}</dd></div></dl>
     ${same>1?`<button type="button" class="more" data-act="samereg">이 산지 와인 ${same}종 모아보기</button>`:""}
+  </div>`;
+}
+function grapePanel(w,g){
+  const p=GRAPE[g];if(!p)return"";
+  const same=W.filter(x=>x.grapes.includes(g)).length;
+  return `<div class="region gpanel" id="gr-${w.idx}"><div class="gp-h">${esc(p.name)} <span>${p.color==="R"?"레드 품종":"화이트 품종"}</span></div><dl>
+    <div><dt>고향 · 대표 산지</dt><dd>${esc(p.home)}</dd></div>
+    <div><dt>포도 특징</dt><dd>${esc(p.char)}</dd></div>
+    <div><dt>대표 향</dt><dd>${esc(p.aroma)}</dd></div>
+    <div><dt>맛의 구조</dt><dd>${esc(p.struct)}</dd></div></dl>
+    ${same>1?`<button type="button" class="more" data-act="samegrape" data-g="${g}">이 품종 와인 ${same}종 모아보기</button>`:""}
   </div>`;
 }
 // 메모는 저장 버튼을 눌러야 확정된다. 쓰던 글(draft)은 따로 보관해 페이지를 나가도 사라지지 않는다
@@ -276,6 +304,8 @@ function card(w){
   const tags=w.tags.map(x=>`<span class="tag day">${esc(x)}</span>`).join("");
   const reg=REG[w.reg], open=openReg.has(w.idx);
   const regBtn=reg?`<button type="button" class="region-btn" data-act="region" aria-expanded="${open}" aria-controls="reg-${w.idx}">${esc(reg.name)} · ${esc(reg.country)} <span class="chev">▾</span></button>`:"";
+  const og=openGrape.get(w.idx);
+  const grapeBtns=w.grapes.map(g=>`<button type="button" class="grape-btn" data-act="grape" data-g="${g}" aria-expanded="${og===g}" aria-controls="gr-${w.idx}">${esc(GRAPE[g].name.split(" / ")[0].split(" (")[0])} <span class="chev">▾</span></button>`).join("");
   const hasNote=note&&!note.startsWith("Vivino");
   const info=(hasNote||id)?`<details><summary>노트 · 후기 보기</summary><div class="info">
       ${hasNote?`<p><span class="lbl">테이스팅 노트</span>${esc(note)}</p>`:""}
@@ -285,8 +315,9 @@ function card(w){
   const stars=[1,2,3,4,5].map(n=>`<button type="button" data-act="star" data-n="${n}" class="${(m.stars||0)>=n?"on":""}" aria-label="내 별점 ${n}점">★</button>`).join("");
   return `<article class="card${m.done?" done":""}" data-i="${w.idx}">
     <div class="top"><div class="h"><div class="name">${esc(w.name)}</div>${w.producer?`<div class="producer">${esc(w.producer)}</div>`:""}</div><div class="viv">${viv}</div></div>
-    <div class="meta"><span class="tag t-${t}">${TYPES[t]}</span>${tags}${w.grape?`<span>${esc(w.grape)}</span>`:""}${price?`<span class="price">${won(price)}</span>`:""}</div>
-    ${regBtn}${open?regionPanel(w):""}
+    <div class="meta"><span class="tag t-${t}">${TYPES[t]}</span>${tags}${!w.grapes.length&&w.grape?`<span>${esc(w.grape)}</span>`:""}${price?`<span class="price">${won(price)}</span>`:""}</div>
+    ${(regBtn||grapeBtns)?`<div class="facets">${regBtn}${grapeBtns}</div>`:""}
+    ${open?regionPanel(w):""}${og?grapePanel(w,og):""}
     ${info}
     <div class="mine">
       <div class="acts">
@@ -314,6 +345,7 @@ function matches(w){
   if(prefs.type!=="all"&&w[2]!==prefs.type)return false;
   if(prefs.imp!=="all"&&w[0]!==prefs.imp)return false;
   if(prefs.reg&&w.reg!==prefs.reg)return false;
+  if(prefs.grape&&!w.grapes.includes(prefs.grape))return false;
   if(q){const hay=w.hay+" "+norm(m.memo||"");if(!q.split(/\s+/).every(t=>hay.includes(t)))return false}
   return true;
 }
@@ -385,7 +417,10 @@ $("#out").addEventListener("click",e=>{
   const b=e.target.closest("[data-act]");if(!b||b.tagName==="TEXTAREA")return;
   const cardEl=b.closest(".card"),w=W[+cardEl.dataset.i],act=b.dataset.act;
   if(act==="region"){openReg.has(w.idx)?openReg.delete(w.idx):openReg.add(w.idx);refreshCard(cardEl,w);return}
-  if(act==="samereg"){prefs.reg=w.reg;prefs.status="all";paintChips();savePrefs();render();window.scrollTo({top:$("#out").offsetTop-160});return}
+  if(act==="grape"){const g=b.dataset.g;openGrape.get(w.idx)===g?openGrape.delete(w.idx):openGrape.set(w.idx,g);refreshCard(cardEl,w);return}
+  if(act==="samereg"||act==="samegrape"){
+    if(act==="samereg")prefs.reg=w.reg;else prefs.grape=b.dataset.g;
+    prefs.status="all";paintChips();render();goPage(1);return}
   const m=get(w.key);
   if(act==="save"){
     if(!dirty(m))return;
