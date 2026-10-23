@@ -6,7 +6,12 @@
 <meta name="theme-color" content="#7a1f35">
 <meta name="robots" content="noindex">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="시음회 노트">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="깽&amp;테리 시음회">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
 <meta name="format-detection" content="telephone=no">
 <title>깽이와 테리의 시음회 노트</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -373,6 +378,7 @@ $("#dlg-copy").onclick=async()=>{
 };
 
 paintChips();render();
+if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 </script>
 </body>
 </html>
