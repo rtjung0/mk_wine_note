@@ -109,11 +109,9 @@ main{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
 .region dt{font-size:11.5px;font-weight:600;color:var(--geo);letter-spacing:.04em}
 .region dd{margin:1px 0 0}
 .region .more{justify-self:start;border:1px solid var(--geo);background:transparent;color:var(--geo);border-radius:999px;padding:5px 12px;font-size:13px;cursor:pointer}
-details{margin-top:8px}
-summary{font-size:14px;color:var(--accent);cursor:pointer;list-style:none;padding:4px 0}
-summary::-webkit-details-marker{display:none}
-summary::before{content:"▸ "}
-details[open] summary::before{content:"▾ "}
+.note-btn{display:block;margin-top:8px;border:0;background:none;padding:6px 0;font-size:14px;color:var(--accent);cursor:pointer}
+.note-btn::before{content:"▸ "}
+.note-btn[aria-expanded="true"]::before{content:"▾ "}
 .info{font-size:14.5px;margin-top:4px;display:grid;gap:8px}
 .info p{margin:0}
 .lbl{font-size:11.5px;color:var(--muted);display:block}
@@ -241,8 +239,8 @@ let prefs={status:"all",type:"all",imp:"all",sort:"list",reg:"",grape:""};
 try{Object.assign(prefs,JSON.parse(sessionStorage.getItem(STORE+"-ui")||"{}"))}catch(e){}
 const savePrefs=()=>{try{sessionStorage.setItem(STORE+"-ui",JSON.stringify(prefs))}catch(e){}};
 let q="";
-const openReg=new Set();
-const openGrape=new Map(); // 카드 번호 → 펼친 품종 (카드당 하나)
+// 산지·품종·노트 설명은 화면 전체에서 하나만 펼친다: {idx, kind:"reg"|"grape"|"note", g}
+let openPanel=null;
 
 const imps=[...new Set(W.map(w=>w[0]))];
 function chips(el,items,key){
@@ -301,16 +299,19 @@ function card(w){
   const approx=vname.startsWith("≈")?"≈":"";
   const viv=r?`<b>${approx}${r.toFixed(1)}</b><small>Vivino ${c.toLocaleString()}</small>`:`<b>—</b><small>Vivino</small>`;
   const tags=w.tags.map(x=>`<span class="tag day">${esc(x)}</span>`).join("");
-  const reg=REG[w.reg], open=openReg.has(w.idx);
+  const mine=openPanel&&openPanel.idx===w.idx?openPanel:null;
+  const reg=REG[w.reg], open=!!mine&&mine.kind==="reg";
   const regBtn=reg?`<button type="button" class="region-btn" data-act="region" aria-expanded="${open}" aria-controls="reg-${w.idx}">${esc(reg.name)} · ${esc(reg.country)} <span class="chev">▾</span></button>`:"";
-  const og=openGrape.get(w.idx);
+  const og=mine&&mine.kind==="grape"?mine.g:null;
   const grapeBtns=w.grapes.map(g=>`<button type="button" class="grape-btn" data-act="grape" data-g="${g}" aria-expanded="${og===g}" aria-controls="gr-${w.idx}">${esc(GRAPE[g].name.split(" / ")[0].split(" (")[0])} <span class="chev">▾</span></button>`).join("");
   const hasNote=note&&!note.startsWith("Vivino");
-  const info=(hasNote||id)?`<details><summary>노트 · 후기 보기</summary><div class="info">
+  const noteOpen=!!mine&&mine.kind==="note";
+  const info=(hasNote||id)?`<button type="button" class="note-btn" data-act="note" aria-expanded="${noteOpen}" aria-controls="nt-${w.idx}">노트 · 후기 보기</button>
+    ${noteOpen?`<div class="info" id="nt-${w.idx}">
       ${hasNote?`<p><span class="lbl">테이스팅 노트</span>${esc(note)}</p>`:""}
       ${rev&&rev!=="—"?`<p class="rev"><span class="lbl">Vivino 대표 후기</span>${esc(rev)}</p>`:""}
       ${id?`<a href="https://www.vivino.com/w/${id}" target="_blank" rel="noopener">Vivino에서 보기 · ${esc(vname.replace(/^≈ /,""))}</a>`:""}
-    </div></details>`:"";
+    </div>`:""}`:"";
   const stars=[1,2,3,4,5].map(n=>`<button type="button" data-act="star" data-n="${n}" class="${(m.stars||0)>=n?"on":""}" aria-label="내 별점 ${n}점">★</button>`).join("");
   return `<article class="card${m.done?" done":""}" data-i="${w.idx}">
     <div class="top"><div class="h"><div class="name">${esc(w.name)}</div>${w.producer?`<div class="producer">${esc(w.producer)}</div>`:""}</div><div class="viv">${viv}</div></div>
@@ -407,14 +408,24 @@ function refreshCard(cardEl,w){
   return nc;
 }
 
+// 새 설명을 펼치면 앞서 펼친 설명은 접는다. 위쪽 카드가 접혀도 누른 버튼이 제자리에 있도록 스크롤을 보정
+function togglePanel(cardEl,w,kind,g){
+  const same=openPanel&&openPanel.idx===w.idx&&openPanel.kind===kind&&(kind!=="grape"||openPanel.g===g);
+  const prev=openPanel;
+  openPanel=same?null:{idx:w.idx,kind,g};
+  const before=cardEl.getBoundingClientRect().top;
+  if(prev&&prev.idx!==w.idx){const pc=document.querySelector(`.card[data-i="${prev.idx}"]`);if(pc)refreshCard(pc,W[prev.idx])}
+  const nc=refreshCard(cardEl,w);
+  const shift=nc.getBoundingClientRect().top-before;
+  if(shift)window.scrollBy(0,shift);
+}
 // 카드 안 조작은 해당 카드만 다시 그려 스크롤 위치를 지킨다
 $("#out").addEventListener("click",e=>{
   const pg=e.target.closest("[data-page]");
   if(pg){if(!pg.disabled)goPage(+pg.dataset.page);return}
   const b=e.target.closest("[data-act]");if(!b||b.tagName==="TEXTAREA")return;
   const cardEl=b.closest(".card"),w=W[+cardEl.dataset.i],act=b.dataset.act;
-  if(act==="region"){openReg.has(w.idx)?openReg.delete(w.idx):openReg.add(w.idx);refreshCard(cardEl,w);return}
-  if(act==="grape"){const g=b.dataset.g;openGrape.get(w.idx)===g?openGrape.delete(w.idx):openGrape.set(w.idx,g);refreshCard(cardEl,w);return}
+  if(act==="region"||act==="grape"||act==="note"){togglePanel(cardEl,w,act==="region"?"reg":act,b.dataset.g);return}
   if(act==="samereg"||act==="samegrape"){
     if(act==="samereg")prefs.reg=w.reg;else prefs.grape=b.dataset.g;
     prefs.status="all";paintChips();render();goPage(1);return}
