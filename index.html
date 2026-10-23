@@ -37,7 +37,7 @@
   --star:#e3b641; --done:#6fcf97; --done-soft:#1f3328; --day:#b9a3f0; --day-soft:#2b2340;
   --geo:#9fd3a4; --geo-soft:#1f2e22; color-scheme:dark}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulation}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:pan-x pan-y}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.55;overscroll-behavior-y:none}
 button{font:inherit;color:inherit;touch-action:manipulation}
 .wrap{max-width:720px;margin:0 auto;padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
@@ -73,6 +73,8 @@ main{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
 .list{display:flex;flex-direction:column;gap:12px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 14px 12px;min-width:0}
 .card.done{border-color:var(--done);box-shadow:inset 4px 0 0 var(--done)}
+/* 화면 밖 카드는 그리기를 미뤄 스크롤을 가볍게 */
+.card{content-visibility:auto;contain-intrinsic-size:auto 340px}
 .top{display:flex;gap:10px;align-items:flex-start}
 .top .h{flex:1;min-width:0}
 .name{font-weight:600;font-size:16.5px;line-height:1.4;word-break:keep-all;overflow-wrap:anywhere}
@@ -188,9 +190,7 @@ dialog .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 <script>
 // 확대/축소 막기: iOS Safari는 viewport 설정을 무시하므로 핀치·더블탭 제스처를 직접 막는다
 ["gesturestart","gesturechange","gestureend"].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
-document.addEventListener("touchmove",e=>{if(e.touches.length>1)e.preventDefault()},{passive:false});
-let lastTouch=0;
-document.addEventListener("touchend",e=>{const now=Date.now();if(now-lastTouch<300&&!e.target.closest("input,textarea,select"))e.preventDefault();lastTouch=now},{passive:false});
+// 더블탭 확대는 CSS touch-action으로 막는다(스크롤을 붙잡는 touchmove/touchend 리스너는 버벅임을 만들어 쓰지 않음)
 
 const TYPES={R:"레드",W:"화이트",S:"스파클링",P:"로제",D:"디저트·주정강화",O:"오렌지·내추럴"};
 const norm=s=>String(s).normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[-'’.,·()\[\]]/g," ");
@@ -322,7 +322,7 @@ function render(){
       price:(a,b)=>(a[10]?a[10][0]:999)-(b[10]?b[10][0]:999)}[prefs.sort];
     out.innerHTML=`<div class="list" style="margin-top:14px">${[...rows].sort(by).map(card).join("")}</div>`;
   }
-  out.querySelectorAll("textarea").forEach(grow);
+  growFilled(out);
   progress();
 }
 function progress(){
@@ -334,10 +334,12 @@ function progress(){
   $('#status .chip[data-v="wish"]').textContent=`♥ 하트 ${cnt("wish")}`;
   $('#status .chip[data-v="pick"]').textContent=`찜 ${cnt("pick")}`;
 }
-function grow(t){t.style.height="auto";t.style.height=t.scrollHeight+2+"px"}
+// 빈 메모칸은 기본 높이 그대로 둔다. 132개를 모두 재면 그릴 때마다 레이아웃 계산이 수백 번 일어난다
+function grow(t){if(!t.value){t.style.height="";return}t.style.height="auto";t.style.height=t.scrollHeight+2+"px"}
+const growFilled=root=>root.querySelectorAll("textarea").forEach(t=>{if(t.value)grow(t)});
 function refreshCard(cardEl,w){
   const tmp=document.createElement("div");tmp.innerHTML=card(w);
-  const nc=tmp.firstElementChild;cardEl.replaceWith(nc);nc.querySelectorAll("textarea").forEach(grow);
+  const nc=tmp.firstElementChild;cardEl.replaceWith(nc);growFilled(nc);
   return nc;
 }
 
