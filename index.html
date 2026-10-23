@@ -104,7 +104,7 @@ dialog .row .btn{flex:1}
 <body>
 <header class="intro wrap">
   <h1>깽이와 테리의 시음회 노트</h1>
-  <p class="lede">16개 수입사 출품 와인 132종. 별점은 Vivino 평균(2026.10.23 기준), 가격은 국내 소매 추정가입니다. 내 체크·별점·메모는 이 휴대폰 브라우저에만 저장됩니다.</p>
+  <p class="lede">‘≈’ 표시는 정확히 같은 퀴베를 찾지 못해 가장 가까운 항목으로 대신한 경우이고, ‘—’는 Vivino에 등록되지 않았거나 평가가 부족한 경우입니다.</p>
   <div class="progress"><div class="bar"><i id="bar"></i></div><span id="prog">0 / 132 시음</span></div>
 </header>
 
@@ -321,7 +321,8 @@ $("#sort").value=prefs.sort;
 function card(w){
   const m=my[w.key]||{};
   const [imp,,t,vname,reg,r,c,id,note,rev,price]=w;
-  const viv=r?`<b>${r.toFixed(1)}</b><small>Vivino ${c.toLocaleString()}</small>`:"";
+  const approx=vname.startsWith("≈")?"≈":"";
+  const viv=r?`<b>${approx}${r.toFixed(1)}</b><small>Vivino ${c.toLocaleString()}</small>`:`<b>—</b><small>Vivino</small>`;
   const tags=w.tags.map(x=>`<span class="tag day">${esc(x)}</span>`).join("");
   const hasInfo=id||(note&&!note.startsWith("Vivino"));
   const info=hasInfo?`<details><summary>노트 · 후기 보기</summary><div class="info">
