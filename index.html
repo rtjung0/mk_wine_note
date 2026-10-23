@@ -137,13 +137,12 @@ textarea{font:inherit;font-size:16px;width:100%;min-height:46px;resize:none;bord
 .btn.save:not(:disabled){background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
 .btn.save:disabled{color:var(--muted);cursor:default}
 .empty{color:var(--muted);padding:30px 4px;text-align:center}
-/* 폰 폭에서는 번호 줄이 위, 이전/다음이 아래 */
+/* 페이지 번호만 가운데 정렬 */
 .pager{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:20px 0 4px}
 .pager .nums{order:-1;width:100%;display:flex;gap:4px;justify-content:center}
-.pager .nav{flex:1}
 .pg{min-width:38px;min-height:44px;border:1px solid var(--line);background:var(--surface);border-radius:10px;font-size:15px;cursor:pointer;font-variant-numeric:tabular-nums;padding:0 6px}
 .pg.on{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:600}
-.pg.nav{padding:0 10px;white-space:nowrap}
+
 .pg:disabled{opacity:.4;cursor:default}
 
 .dock{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding:10px max(14px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
@@ -357,9 +356,7 @@ function pager(page,pages){
   let nums="";
   for(let p=1;p<=pages;p++)nums+=`<button type="button" class="pg${p===page?" on":""}" data-page="${p}" ${p===page?'aria-current="page"':""}>${p}</button>`;
   return `<nav class="pager" aria-label="페이지">
-    <button type="button" class="pg nav" data-page="${page-1}" ${page===1?"disabled":""}>‹ 이전</button>
-    <div class="nums">${nums}</div>
-    <button type="button" class="pg nav" data-page="${page+1}" ${page===pages?"disabled":""}>다음 ›</button></nav>`;
+    <div class="nums">${nums}</div></nav>`;
 }
 function draw(){
   let rows=W.filter(matches);
