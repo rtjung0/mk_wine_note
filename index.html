@@ -124,6 +124,14 @@ textarea{font:inherit;font-size:16px;width:100%;min-height:46px;resize:none;bord
 .btn.save:not(:disabled){background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
 .btn.save:disabled{color:var(--muted);cursor:default}
 .empty{color:var(--muted);padding:30px 4px;text-align:center}
+/* 폰 폭에서는 번호 줄이 위, 이전/다음이 아래 */
+.pager{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:20px 0 4px}
+.pager .nums{order:-1;width:100%;display:flex;gap:4px;justify-content:center}
+.pager .nav{flex:1}
+.pg{min-width:38px;min-height:44px;border:1px solid var(--line);background:var(--surface);border-radius:10px;font-size:15px;cursor:pointer;font-variant-numeric:tabular-nums;padding:0 6px}
+.pg.on{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:600}
+.pg.nav{padding:0 10px;white-space:nowrap}
+.pg:disabled{opacity:.4;cursor:default}
 
 .dock{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding:10px max(14px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
 .dock .wrap{display:grid;grid-template-columns:1fr 2fr;gap:8px;padding:0}
@@ -309,21 +317,48 @@ function matches(w){
   if(q){const hay=w.hay+" "+norm(m.memo||"");if(!q.split(/\s+/).every(t=>hay.includes(t)))return false}
   return true;
 }
-function render(){
-  const rows=W.filter(matches);
-  $("#count").textContent=`${rows.length}종 표시 중`;
+const PER_PAGE=20;
+// 검색·필터·정렬이 바뀌면 1페이지부터 다시 그린다
+function render(){prefs.page=1;savePrefs();draw()}
+function pager(page,pages){
+  if(pages<2)return"";
+  let nums="";
+  for(let p=1;p<=pages;p++)nums+=`<button type="button" class="pg${p===page?" on":""}" data-page="${p}" ${p===page?'aria-current="page"':""}>${p}</button>`;
+  return `<nav class="pager" aria-label="페이지">
+    <button type="button" class="pg nav" data-page="${page-1}" ${page===1?"disabled":""}>‹ 이전</button>
+    <div class="nums">${nums}</div>
+    <button type="button" class="pg nav" data-page="${page+1}" ${page===pages?"disabled":""}>다음 ›</button></nav>`;
+}
+function draw(){
+  let rows=W.filter(matches);
   const out=$("#out");
-  if(!rows.length){out.innerHTML='<p class="empty">조건에 맞는 와인이 없어요. 검색어나 필터를 바꿔 보세요.</p>';progress();return}
-  if(prefs.sort==="list"){
-    out.innerHTML=imps.map(i=>{const g=rows.filter(w=>w[0]===i);return g.length?`<h2 class="group-h">${esc(i)}<small>${g.length}종</small></h2><div class="list">${g.map(card).join("")}</div>`:""}).join("");
-  }else{
+  if(!rows.length){$("#count").textContent="0종";out.innerHTML='<p class="empty">조건에 맞는 와인이 없어요. 검색어나 필터를 바꿔 보세요.</p>';progress();return}
+  if(prefs.sort!=="list"){
     const by={rating:(a,b)=>(b[5]||0)-(a[5]||0),
       mine:(a,b)=>((my[b.key]||{}).stars||0)-((my[a.key]||{}).stars||0)||(b[5]||0)-(a[5]||0),
       price:(a,b)=>(a[10]?a[10][0]:999)-(b[10]?b[10][0]:999)}[prefs.sort];
-    out.innerHTML=`<div class="list" style="margin-top:14px">${[...rows].sort(by).map(card).join("")}</div>`;
+    rows=[...rows].sort(by);
   }
+  const pages=Math.ceil(rows.length/PER_PAGE);
+  const page=Math.min(Math.max(1,prefs.page||1),pages);prefs.page=page;
+  const from=(page-1)*PER_PAGE,slice=rows.slice(from,from+PER_PAGE);
+  $("#count").textContent=`${rows.length}종`+(pages>1?` · ${from+1}–${from+slice.length}번째 (${page}/${pages} 페이지)`:"");
+  let body;
+  if(prefs.sort==="list"){
+    // 출품순은 페이지 안에서 수입사별로 묶는다. 앞 페이지에서 이어지는 수입사는 ‘이어서’로 표시
+    const prev=from>0?rows[from-1][0]:null;
+    body=imps.map(i=>{const g=slice.filter(w=>w[0]===i);if(!g.length)return"";
+      const total=rows.filter(w=>w[0]===i).length;
+      return `<h2 class="group-h">${esc(i)}<small>${i===prev?"이어서 · ":""}${total}종</small></h2><div class="list">${g.map(card).join("")}</div>`}).join("");
+  }else body=`<div class="list" style="margin-top:14px">${slice.map(card).join("")}</div>`;
+  out.innerHTML=body+pager(page,pages);
   growFilled(out);
   progress();
+}
+function goPage(p){
+  prefs.page=p;savePrefs();draw();
+  const top=$("#out").getBoundingClientRect().top+window.scrollY-$(".controls").offsetHeight-4;
+  window.scrollTo({top:Math.max(0,top)});
 }
 function progress(){
   const cnt=k=>W.filter(w=>(my[w.key]||{})[k]).length;
@@ -345,6 +380,8 @@ function refreshCard(cardEl,w){
 
 // 카드 안 조작은 해당 카드만 다시 그려 스크롤 위치를 지킨다
 $("#out").addEventListener("click",e=>{
+  const pg=e.target.closest("[data-page]");
+  if(pg){if(!pg.disabled)goPage(+pg.dataset.page);return}
   const b=e.target.closest("[data-act]");if(!b||b.tagName==="TEXTAREA")return;
   const cardEl=b.closest(".card"),w=W[+cardEl.dataset.i],act=b.dataset.act;
   if(act==="region"){openReg.has(w.idx)?openReg.delete(w.idx):openReg.add(w.idx);refreshCard(cardEl,w);return}
@@ -402,7 +439,7 @@ $("#dlg-copy").onclick=async()=>{
   catch(e){t.select();toast("선택했어요. 길게 눌러 복사하세요")}
 };
 
-paintChips();render();
+paintChips();draw();
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 </script>
 </body>
