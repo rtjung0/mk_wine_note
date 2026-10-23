@@ -117,6 +117,10 @@ details[open] summary::before{content:"▾ "}
 .stars button{font-size:28px;line-height:1;background:none;border:0;padding:4px 3px;color:var(--line);cursor:pointer;min-width:42px;min-height:44px}
 .stars button.on{color:var(--star)}
 textarea{font:inherit;font-size:16px;width:100%;min-height:46px;resize:none;border:1px solid var(--line);background:var(--soft);color:var(--fg);border-radius:12px;padding:10px 12px;overflow:hidden}
+.memo-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.btn.save{min-width:72px;font-weight:600}
+.btn.save:not(:disabled){background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.save:disabled{color:var(--muted);cursor:default}
 .empty{color:var(--muted);padding:30px 4px;text-align:center}
 
 .dock{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding:10px max(14px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
@@ -250,6 +254,12 @@ function regionPanel(w){
     ${same>1?`<button type="button" class="more" data-act="samereg">이 산지 와인 ${same}종 모아보기</button>`:""}
   </div>`;
 }
+// 메모는 저장 버튼을 눌러야 확정된다. 쓰던 글(draft)은 따로 보관해 페이지를 나가도 사라지지 않는다
+const dirty=m=>m.draft!=null&&m.draft!==(m.memo||"");
+function saveBtn(m){
+  const d=dirty(m);
+  return `<button type="button" class="btn save" data-act="save" ${d?"":"disabled"}>${d?"저장":(m.memo?"✓ 저장됨":"저장")}</button>`;
+}
 function card(w){
   const m=my[w.key]||{};
   const [,,t,vname,,r,c,id,note,rev,price]=w;
@@ -277,7 +287,10 @@ function card(w){
         <button type="button" class="btn pick" data-act="pick" aria-pressed="${!!m.pick}">${m.pick?"✓ 찜":"찜하기"}</button>
       </div>
       <div class="rate"><span class="lbl">내 별점</span><div class="stars" role="group" aria-label="내 별점">${stars}</div></div>
-      <textarea data-act="memo" rows="1" placeholder="내 메모 (향, 맛, 페어링…)" aria-label="${esc(w.name)} 메모">${esc(m.memo||"")}</textarea>
+      <div class="memo-row">
+        <textarea data-act="memo" rows="1" placeholder="내 메모 (향, 맛, 페어링…)" aria-label="${esc(w.name)} 메모">${esc(m.draft??m.memo??"")}</textarea>
+        ${saveBtn(m)}
+      </div>
     </div>
   </article>`;
 }
@@ -335,6 +348,13 @@ $("#out").addEventListener("click",e=>{
   if(act==="region"){openReg.has(w.idx)?openReg.delete(w.idx):openReg.add(w.idx);refreshCard(cardEl,w);return}
   if(act==="samereg"){prefs.reg=w.reg;prefs.status="all";paintChips();savePrefs();render();window.scrollTo({top:$("#out").offsetTop-160});return}
   const m=get(w.key);
+  if(act==="save"){
+    if(!dirty(m))return;
+    m.memo=m.draft.trim();delete m.draft;save();
+    const box=b.parentNode,tmp=document.createElement("div");tmp.innerHTML=saveBtn(m);box.replaceChild(tmp.firstElementChild,b);
+    box.querySelector("textarea").value=m.memo;
+    toast("메모 저장 완료");return;
+  }
   if(act==="done")m.done=!m.done;
   if(act==="wish")m.wish=!m.wish;
   if(act==="pick")m.pick=!m.pick;
@@ -343,7 +363,10 @@ $("#out").addEventListener("click",e=>{
 });
 $("#out").addEventListener("input",e=>{
   const t=e.target;if(t.dataset.act!=="memo")return;
-  get(W[+t.closest(".card").dataset.i].key).memo=t.value;save();grow(t);
+  const m=get(W[+t.closest(".card").dataset.i].key);
+  if(t.value===(m.memo||""))delete m.draft;else m.draft=t.value;
+  save();grow(t);
+  const old=t.parentNode.querySelector(".save"),tmp=document.createElement("div");tmp.innerHTML=saveBtn(m);old.replaceWith(tmp.firstElementChild);
 });
 
 let timer;$("#q").addEventListener("input",e=>{clearTimeout(timer);timer=setTimeout(()=>{q=norm(e.target.value).trim();render()},120)});
